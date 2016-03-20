@@ -6,7 +6,6 @@ import numpy as np
 import os
 import sys
 import tarfile
-from IPython.display import display, Image
 from scipy import ndimage
 from sklearn.linear_model import LogisticRegression
 from six.moves.urllib.request import urlretrieve
@@ -17,6 +16,7 @@ url = 'http://yaroslavvb.com/upload/notMNIST/'
 num_classes = 10
 image_size = 28  # Pixel width and height.
 pixel_depth = 255.0  # Number of levels per pixel.
+np.random.seed(133)
 
 
 def maybe_download(filename, expected_bytes):
@@ -93,6 +93,13 @@ def load(data_folders, min_num_images, max_num_images):
     return dataset, labels
 
 
+def randomize(dataset, labels):
+    permutation = np.random.permutation(labels.shape[0])
+    shuffled_dataset = dataset[permutation, :, :]
+    shuffled_labels = labels[permutation]
+    return shuffled_dataset, shuffled_labels
+
+
 def main():
     train_filename = maybe_download('notMNIST_large.tar.gz', 247336696)
     test_filename = maybe_download('notMNIST_small.tar.gz', 8458043)
@@ -102,6 +109,9 @@ def main():
 
     train_dataset, train_labels = load(train_folders, 450000, 550000)
     test_dataset, test_labels = load(test_folders, 18000, 20000)
+
+    train_dataset, train_labels = randomize(train_dataset, train_labels)
+    test_dataset, test_labels = randomize(test_dataset, test_labels)
 
 if __name__ == '__main__':
     main()
