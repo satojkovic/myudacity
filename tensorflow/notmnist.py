@@ -8,6 +8,7 @@ import sys
 import tarfile
 from scipy import ndimage
 from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import classification_report
 from six.moves.urllib.request import urlretrieve
 from six.moves import cPickle as pickle
 
@@ -17,6 +18,7 @@ num_classes = 10
 image_size = 28  # Pixel width and height.
 pixel_depth = 255.0  # Number of levels per pixel.
 np.random.seed(133)
+pickle_file = 'notMNIST.pickle'
 
 
 def maybe_download(filename, expected_bytes):
@@ -100,18 +102,81 @@ def randomize(dataset, labels):
     return shuffled_dataset, shuffled_labels
 
 
+def flatten_dataset(dataset):
+    dataset_flat = [data.flatten() for data in dataset]
+    return np.array(dataset_flat)
+
+
 def main():
-    train_filename = maybe_download('notMNIST_large.tar.gz', 247336696)
-    test_filename = maybe_download('notMNIST_small.tar.gz', 8458043)
+    if not os.path.exists(pickle_file):
+        train_filename = maybe_download('notMNIST_large.tar.gz', 247336696)
+        test_filename = maybe_download('notMNIST_small.tar.gz', 8458043)
 
-    train_folders = extract(train_filename)
-    test_folders = extract(test_filename)
+        train_folders = extract(train_filename)
+        test_folders = extract(test_filename)
 
-    train_dataset, train_labels = load(train_folders, 450000, 550000)
-    test_dataset, test_labels = load(test_folders, 18000, 20000)
+        train_dataset, train_labels = load(train_folders, 450000, 550000)
+        test_dataset, test_labels = load(test_folders, 18000, 20000)
 
-    train_dataset, train_labels = randomize(train_dataset, train_labels)
-    test_dataset, test_labels = randomize(test_dataset, test_labels)
+        train_dataset, train_labels = randomize(train_dataset, train_labels)
+        test_dataset, test_labels = randomize(test_dataset, test_labels)
+
+        train_size = 200000
+        valid_size = 10000
+
+        valid_dataset = train_dataset[:valid_size, :, :]
+        valid_labels = train_labels[:valid_size]
+        train_dataset = train_dataset[valid_size:valid_size+train_size, :, :]
+        train_labels = train_labels[valid_size:valid_size+train_size]
+
+        try:
+            f = open(pickle_file, 'wb')
+            save = {
+                'train_dataset': train_dataset,
+                'train_labels': train_labels,
+                'valid_dataset': valid_dataset,
+                'valid_labels': valid_labels,
+                'test_dataset': test_dataset,
+                'test_labels': test_labels,
+            }
+            pickle.dump(save, f, pickle.HIGHEST_PROTOCOL)
+            f.close()
+        except Exception as e:
+            print('Unable to save data to', pickle_file, ':', e)
+            raise
+
+        statinfo = os.stat(pickle_file)
+        print('Compressed pickle size:', statinfo.st_size)
+    else:
+        # load pickle file
+        print 'Load from saved data:', pickle_file
+        f = open(pickle_file, 'rb')
+        data = pickle.load(f)
+
+        # assign each variable
+        train_dataset = data['train_dataset']
+        train_labels = data['train_labels']
+        test_dataset = data['test_dataset']
+        test_labels = data['test_labels']
+        valid_dataset = data['valid_dataset']
+        valid_labels = data['valid_labels']
+
+    # print details of the notMNIST dataset
+    print('Training', train_dataset.shape, train_labels.shape)
+    print('Test', test_dataset.shape, test_labels.shape)
+    print('Validation', valid_dataset.shape, valid_labels.shape)
+
+    # flatten dataset for using sklearn
+    train_dataset_flat = flatten_dataset(train_dataset)
+    test_dataset_flat = flatten_dataset(test_dataset)
+    valid_dataset_flat = flatten_dataset(valid_dataset)
+
+    # problem6
+    clf = LogisticRegression()
+    clf.fit(train_dataset_flat[:5000], train_labels[:5000])
+    pred = clf.predict(test_dataset_flat[:10000])
+    labels = map(np.str, np.unique(test_labels[:10000]))
+    print classification_report(test_labels[:10000], pred, target_names=labels)
 
 if __name__ == '__main__':
     main()
