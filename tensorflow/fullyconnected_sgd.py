@@ -22,37 +22,36 @@ def reformat(dataset, labels):
 
 
 def tensorflow_graph(train_dataset, train_labels, valid_dataset, valid_labels, test_dataset, test_labels):
-    train_subset = 10000
+    batch_size = 128
     graph_obj = {}
+    graph_obj['batch_size'] = batch_size
 
     graph = tf.Graph()
     with graph.as_default():
         # Input data
-        # Load the training, valid, test data into constants that are
-        # attached to the graph.
-        tf_train_dataset = tf.constant(train_dataset[:train_subset, :])
-        tf_train_labels = tf.constant(train_labels[:train_subset])
+        # For the training data, we use a placeholder that will be fed
+        # at run time with a training batch.
+        tf_train_dataset = tf.placeholder(tf.float32,
+                                          shape=(batch_size,
+                                                 image_size * image_size))
+        tf_train_labels = tf.placeholder(tf.float32,
+                                         shape=(batch_size, num_labels))
         tf_valid_dataset = tf.constant(valid_dataset)
         tf_test_dataset = tf.constant(test_dataset)
-        graph_obj['train_labels_subset'] = train_labels[:train_subset]
+        graph_obj['tf_train_dataset'] = tf_train_dataset
+        graph_obj['tf_train_labels'] = tf_train_labels
+        graph_obj['train_dataset'] = train_dataset
+        graph_obj['train_labels'] = train_labels
         graph_obj['valid_labels'] = valid_labels
         graph_obj['test_labels'] = test_labels
 
         # Variables
-        # These are the parameters that we are going to be training.
-        # The weight matrix will be initialized using random valued
-        # following (truncated) normal distribution.
-        # The biases are get initialized to zero.
         weights = tf.Variable(
             tf.truncated_normal([image_size * image_size, num_labels])
         )
         biases = tf.Variable(tf.zeros([num_labels]))
 
         # Training computation
-        # We multiply the inputs with the weight matrix, and add biases.
-        # We compute the softmax cross entropy.
-        # We take the average of this cross entropy across
-        # all training examples: that's our loss
         logits = tf.matmul(tf_train_dataset, weights) + biases
         loss = tf.reduce_mean(
             tf.nn.softmax_cross_entropy_with_logits(logits, tf_train_labels)
@@ -60,19 +59,16 @@ def tensorflow_graph(train_dataset, train_labels, valid_dataset, valid_labels, t
         graph_obj['loss'] = loss
 
         # Optimizer
-        # We are going to find the minimum of this loss using gradient descent.
         optimizer = tf.train.GradientDescentOptimizer(0.5).minimize(loss)
         graph_obj['optimizer'] = optimizer
 
         # Predictions for the training, validations, and test data.
-        # These are not part of training, but merely here so that we can
-        # report accuracy figures as we train
         train_prediction = tf.nn.softmax(logits)
         valid_prediction = tf.nn.softmax(
-            tf.matmul(valid_dataset, weights) + biases
+            tf.matmul(tf_valid_dataset, weights) + biases
         )
         test_prediction = tf.nn.softmax(
-            tf.matmul(test_dataset, weights) + biases
+            tf.matmul(tf_test_dataset, weights) + biases
         )
         graph_obj['train_prediction'] = train_prediction
         graph_obj['valid_prediction'] = valid_prediction
@@ -92,28 +88,41 @@ def tensorflow_session(graph_obj):
     num_steps = 8001
 
     with tf.Session(graph=graph_obj['graph']) as session:
-        # This is one time operation which ensures the parameters get initialized
-        # as we described in the graph: random weights for the matrix,
-        # zeros for the biases.
         tf.initialize_all_variables().run()
         print 'Initialized.'
+        batch_size = graph_obj['batch_size']
 
         for step in range(num_steps):
-            # Run the computations
-            # We tell run() that we want to run the optimizer, and get
-            # the loss value and the training predictions returned as
-            # numpy arrays
-            _, l, predictions = session.run([graph_obj['optimizer'],
-                                             graph_obj['loss'],
-                                             graph_obj['train_prediction']])
+            # Pick an offset within the training data, which has been randomized.
+            # Note: we could use better randomization across epochs.
+            offset = (step * batch_size) % \
+                     (graph_obj['train_labels'].shape[0] - batch_size)
 
-            if step % 100 == 0:
-                print 'Loss at step %d: %f' % (step, l)
-                print 'Training accuracy: %.1f%%' % accuracy(predictions,
-                                                             graph_obj['train_labels_subset'])
-                print 'Validation accuracy: %.1f%%' % accuracy(graph_obj['valid_prediction'].eval(),
-                                                               graph_obj['valid_labels'])
+            # Generate a minibatch.
+            batch_data = graph_obj['train_dataset'][offset:(offset+batch_size), :]
+            batch_labels = graph_obj['train_labels'][offset:(offset+batch_size), :]
 
+            # Prepare a dictionary telling the session where to feed
+            # the minibatch. The key of the dictionary is the placeholder node
+            # of the graph to be fed, and the value is the numpy array
+            # to feed of it.
+            feed_dict = {graph_obj['tf_train_dataset']: batch_data,
+                         graph_obj['tf_train_labels']: batch_labels}
+            _, l, predictions = session.run(
+                [graph_obj['optimizer'],
+                 graph_obj['loss'],
+                 graph_obj['train_prediction']],
+                feed_dict=feed_dict
+            )
+
+            if (step % 500 == 0):
+                print 'Minibatch loss at step %d: %f' % (step, l)
+                print 'Minibatch accuracy: %.1f%%' % accuracy(predictions,
+                                                              batch_labels)
+                print 'Validation accuracy: %.1f%%' % accuracy(
+                    graph_obj['valid_prediction'].eval(),
+                    graph_obj['valid_labels']
+                )
         print 'Test accuracy: %.1f%%' % accuracy(graph_obj['test_prediction'].eval(),
                                                  graph_obj['test_labels'])
 
