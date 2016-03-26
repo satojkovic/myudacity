@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from six.moves import cPickle as pickle
+import numpy as np
 
 
 def load_pickle(pickle_file):
@@ -16,3 +17,12 @@ def load_pickle(pickle_file):
         del save
     return train_dataset, train_labels, valid_dataset, \
         valid_labels, test_dataset, test_labels
+
+
+def reformat(dataset, labels, num_labels):
+    # data as a flat matrix
+    # labels as float 1-hot encodings
+    data_num, flat_size = dataset.shape[0], dataset.shape[1] * dataset.shape[2]
+    dataset = dataset.reshape((-1, flat_size)).astype(np.float32)
+    labels = (np.arange(num_labels) == labels[:, None]).astype(np.float32)
+    return dataset, labels
