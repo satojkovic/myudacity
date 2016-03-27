@@ -18,7 +18,7 @@ learning_rate = 0.001
 num_steps = 3001
 
 # Network paramters
-n_hidden = 256
+n_hidden = 1024
 n_input = image_size * image_size
 n_classes = num_labels
 
