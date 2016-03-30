@@ -11,11 +11,24 @@ num_labels = 10
 image_size = 28
 batch_size = 128
 lambda_2 = 0.001
+training_epochs = 15
+learning_rate = 0.001
+num_steps = 8001
+
+# Network parameters
+n_hidden = 1024
+n_input = image_size * image_size
+n_classes = num_labels
 
 
 def accuracy(predictions, labels):
     return (100.0 * np.sum(np.argmax(predictions, 1) == np.argmax(labels, 1))
             / predictions.shape[0])
+
+
+def multilayer_perceptron(X, weights, biases):
+    layer1 = tf.nn.relu(tf.add(tf.matmul(X, weights['hidden']), biases['hidden']))
+    return tf.add(tf.matmul(layer1, weights['out']), biases['out'])
 
 
 def main():
