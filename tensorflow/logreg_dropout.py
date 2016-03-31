@@ -20,15 +20,9 @@ n_hidden = 1024
 n_input = image_size * image_size
 n_classes = num_labels
 
-
 def accuracy(predictions, labels):
     return (100.0 * np.sum(np.argmax(predictions, 1) == np.argmax(labels, 1))
             / predictions.shape[0])
-
-
-def multilayer_perceptron(X, weights, biases):
-    layer1 = tf.nn.relu(tf.add(tf.matmul(X, weights['hidden']), biases['hidden']))
-    return tf.add(tf.matmul(layer1, weights['out']), biases['out'])
 
 
 def main():
@@ -51,6 +45,7 @@ def main():
     # Tensor graph
     graph = tf.Graph()
     with graph.as_default():
+        # Input dataset
         tf_train_dataset = tf.placeholder(tf.float32,
                                           shape=(batch_size,
                                                  image_size * image_size))
@@ -59,39 +54,50 @@ def main():
         tf_valid_dataset = tf.constant(valid_dataset)
         tf_test_dataset = tf.constant(test_dataset)
 
-        weights = tf.Variable(tf.truncated_normal([image_size * image_size,
-                                                   num_labels]))
-        biases = tf.Variable(tf.zeros([num_labels]))
+        # Variables
+        weights = {
+            'hidden': tf.Variable(tf.random_normal([n_input, n_hidden])),
+            'out': tf.Variable(tf.random_normal([n_hidden, n_classes]))
+        }
+        biases = {
+            'hidden': tf.Variable(tf.random_normal([n_hidden])),
+            'out': tf.Variable(tf.random_normal([n_classes]))
+        }
+        keep_prob = tf.placeholder(tf.float32)
 
-        logits = tf.matmul(tf_train_dataset, weights) + biases
-        loss = tf.reduce_mean(
-            tf.nn.softmax_cross_entropy_with_logits(logits, tf_train_labels)
+        def feedforward(dataset, use_dropout=False):
+            layer1 = tf.nn.relu(tf.add(tf.matmul(dataset, weights['hidden']),
+                                       biases['hidden']))
+            if use_dropout:
+                layer1 = tf.nn.dropout(layer1, keep_prob)
+            return tf.add(tf.matmul(layer1, weights['out']), biases['out'])
+
+        pred = feedforward(tf_train_dataset, use_dropout=True)
+        cost = tf.reduce_mean(
+            tf.nn.softmax_cross_entropy_with_logits(pred, tf_train_labels)
         )
-        loss += lambda_2 * tf.nn.l2_loss(weights)
+        optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
 
-        optimizer = tf.train.GradientDescentOptimizer(0.5).minimize(loss)
-
-        train_prediction = tf.nn.softmax(logits)
-        valid_prediction = tf.nn.softmax(
-            tf.matmul(tf_valid_dataset, weights) + biases)
-        test_prediction = tf.nn.softmax(
-            tf.matmul(tf_test_dataset, weights) + biases)
+        train_prediction = tf.nn.softmax(pred)
+        test_prediction = tf.nn.softmax(feedforward(tf_test_dataset))
+        valid_prediction = tf.nn.softmax(feedforward(tf_valid_dataset))
 
     # Graph computation
-    num_steps = 8001
     with tf.Session(graph=graph) as session:
         tf.initialize_all_variables().run()
         print 'Initialized.'
 
         for step in range(num_steps):
             offset = (step * batch_size) % (train_labels.shape[0] - batch_size)
-            batch_data = train_dataset[offset:(offset+batch_size), :]
-            batch_labels = train_labels[offset:(offset+batch_size), :]
+
+            # Generate a minibatch
+            batch_data = train_dataset[offset:(offset + batch_size), :]
+            batch_labels = train_labels[offset:(offset + batch_size), :]
             feed_dict = {tf_train_dataset: batch_data,
-                         tf_train_labels: batch_labels}
+                         tf_train_labels: batch_labels, keep_prob: 0.75}
             _, l, predictions = session.run(
                 [optimizer,
-                 loss,
+                 cost,
                  train_prediction],
                 feed_dict=feed_dict
             )
