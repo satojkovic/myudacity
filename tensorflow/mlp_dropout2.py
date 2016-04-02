@@ -5,6 +5,7 @@ import numpy as np
 import tensorflow as tf
 from six.moves import cPickle as pickle
 import uda_tf_util
+import math
 
 # Parameters
 num_labels = 10
@@ -98,11 +99,21 @@ def main():
 
         # Variables
         weights = {
-            'hidden1': tf.Variable(tf.random_normal([n_input, n_hidden1])),
-            'hidden2': tf.Variable(tf.random_normal([n_hidden1, n_hidden2])),
-            'hidden3': tf.Variable(tf.random_normal([n_hidden2, n_hidden3])),
-            'hidden4': tf.Variable(tf.random_normal([n_hidden3, n_hidden4])),
-            'out': tf.Variable(tf.random_normal([n_hidden4, n_classes]))
+            'hidden1': tf.Variable(
+                tf.random_normal([n_input, n_hidden1],
+                                 stddev=math.sqrt(2./image_size * image_size))),
+            'hidden2': tf.Variable(
+                tf.random_normal([n_hidden1, n_hidden2],
+                                 stddev=math.sqrt(2./n_hidden1))),
+            'hidden3': tf.Variable(
+                tf.random_normal([n_hidden2, n_hidden3],
+                                 stddev=math.sqrt(2./n_hidden2))),
+            'hidden4': tf.Variable(
+                tf.random_normal([n_hidden3, n_hidden4],
+                                 stddev=math.sqrt(2./n_hidden3))),
+            'out': tf.Variable(
+                tf.random_normal([n_hidden4, n_classes],
+                                 stddev=math.sqrt(2./n_hidden4)))
         }
         biases = {
             'hidden1': tf.Variable(tf.random_normal([n_hidden1])),
@@ -113,7 +124,7 @@ def main():
         }
         keep_prob = tf.placeholder(tf.float32)
             
-        logits = feedforward(tf_train_dataset, weights, biases, 0.75)
+        logits = feedforward(tf_train_dataset, weights, biases, 0.8)
         cost = tf.reduce_mean(
             tf.nn.softmax_cross_entropy_with_logits(logits, tf_train_labels)
         )
@@ -122,9 +133,9 @@ def main():
 
         train_prediction = tf.nn.softmax(logits)
         test_prediction = tf.nn.softmax(feedforward(tf_test_dataset,
-                                                    weights, biases, 0.75))
+                                                    weights, biases, 1.0))
         valid_prediction = tf.nn.softmax(feedforward(tf_valid_dataset,
-                                                     weights, biases, 0.75))
+                                                     weights, biases, 1.0))
 
     # Graph computation
     with tf.Session(graph=graph) as session:
@@ -138,7 +149,7 @@ def main():
             batch_data = train_dataset[offset:(offset + batch_size), :]
             batch_labels = train_labels[offset:(offset + batch_size), :]
             feed_dict = {tf_train_dataset: batch_data,
-                         tf_train_labels: batch_labels, keep_prob: 0.75}
+                         tf_train_labels: batch_labels, keep_prob: 0.8}
             _, l, predictions = session.run(
                 [optimizer,
                  cost,
