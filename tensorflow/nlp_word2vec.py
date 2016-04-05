@@ -14,7 +14,17 @@ from six.moves.urllib.request import urlretrieve
 from sklearn.manifold import TSNE
 
 filename = 'text8.zip'
+
+# Parameters
 vocabulary_size = 50000
+batch_size = 128
+embedding_size = 128 # Dimension of the embedding vector.
+skip_window = 1 # How many words to consider left and right.
+num_skips = 2 # How many times to reuse an input to generate a label.
+valid_size = 16 # Random set of words to evaluate similarity on.
+valid_window = 100 # Only pick dev samples in the head of the distribution.
+valid_examples = np.array(random.sample(range(valid_window), valid_size))
+num_sampled = 64 # Number of negative examples to sample.
 
 def read_data(filename):
     f = zipfile.ZipFile(filename)
