@@ -11,6 +11,8 @@ from six.moves import range
 from six.moves.urllib.request import urlretrieve
 
 url = 'http://mattmahoney.net/dc/'
+vocabulary_size = len(string.ascii_lowercase) + 1  # [a-z] + ' '
+first_letter = ord(string.ascii_lowercase[0])
 
 
 def maybe_download(filename, expected_bytes):
@@ -34,11 +36,39 @@ def read_data(filename):
     f.close()
 
 
+def char2id(char):
+    if char in string.ascii_lowercase:
+        return ord(char) - first_letter + 1
+    elif char == ' ':
+        return 0
+    else:
+        print('Unexpected character: %s' % char)
+        return 0
+
+
+def id2char(dictid):
+    if dictid > 0:
+        return chr(dictid + first_letter - 1)
+    else:
+        return ' '
+
+
 def main():
     filename = maybe_download('text8.zip', 31344016)
     text = read_data(filename)
     print('Data size %d' % len(text))
 
+    # Create a small valid dataset
+    valid_size = 1000
+    valid_text = text[:valid_size]
+    train_text = text[valid_size:]
+    train_size = len(train_text)
+    print(train_size, train_text[:64])
+    print(valid_size, valid_text[:64])
+
+    # map characters to vocabulary IDs and back.
+    print(char2id('a'))
+    print(id2char(1), id2char(26), id2char(0))
 
 if __name__ == '__main__':
     main()
