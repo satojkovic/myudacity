@@ -203,6 +203,9 @@ def main():
             output_gate = tf.sigmoid(tf.matmul(i, ox) + tf.matmul(o, om) + ob)
             return output_gate * tf.tanh(state), state
 
+        def lstm_cell_single(i, o, state):
+            pass
+
         # Input data.
         train_data = list()
         for _ in range(num_unrollings + 1):
