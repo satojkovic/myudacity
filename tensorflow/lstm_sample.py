@@ -191,6 +191,11 @@ def main():
         w = tf.Variable(tf.truncated_normal([num_nodes, vocabulary_size], -0.1, 0.1))
         b = tf.Variable(tf.zeros([vocabulary_size]))
 
+        # Parameters:
+        ifcox = tf.Variable(tf.truncated_normal([vocabulary_size, 4 * num_nodes], -0.1, 0.1))
+        ifcom = tf.Variable(tf.truncated_normal([num_nodes, 4 * num_nodes], -0.1, 0.1))
+        ifcob = tf.Variable(tf.zeros([1, 4 * num_nodes]))
+
         # Definition of the cell computation.
         def lstm_cell(i, o, state):
             """Create a LSTM cell. See e.g.: http://arxiv.org/pdf/1402.1128v1.pdf
@@ -204,7 +209,13 @@ def main():
             return output_gate * tf.tanh(state), state
 
         def lstm_cell_single(i, o, state):
-            pass
+            all_gates_state = tf.matmul(i, ifcox) + tf.matmul(o, ifcom) + ifcob
+            input_gate = tf.sigmoid(all_gates_state[:, 0:num_nodes])
+            forget_gate = tf.sigmoid(all_gates_state[:, num_nodes: 2*num_nodes])
+            update = all_gates_state[:, 2*num_nodes: 3*num_nodes]
+            state = forget_gate * state + input_gate * tf.tanh(update)
+            output_gate = tf.sigmoid(all_gates_state[:, 3*num_nodes:])
+            return output_gate * tf.tanh(state), state
 
         # Input data.
         train_data = list()
@@ -219,7 +230,7 @@ def main():
         output = saved_output
         state = saved_state
         for i in train_inputs:
-            output, state = lstm_cell(i, output, state)
+            output, state = lstm_cell_single(i, output, state)
             outputs.append(output)
 
         # State saving across unrollings.
@@ -251,7 +262,7 @@ def main():
         reset_sample_state = tf.group(
             saved_sample_output.assign(tf.zeros([1, num_nodes])),
             saved_sample_state.assign(tf.zeros([1, num_nodes])))
-        sample_output, sample_state = lstm_cell(
+        sample_output, sample_state = lstm_cell_single(
             sample_input, saved_sample_output, saved_sample_state)
         with tf.control_dependencies([saved_sample_output.assign(sample_output),
                                       saved_sample_state.assign(sample_state)]):
