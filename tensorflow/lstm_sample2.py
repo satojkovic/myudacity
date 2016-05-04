@@ -20,6 +20,9 @@ num_nodes = 64
 num_steps = 7001
 summary_frequency = 100
 
+bigram_dic = defaultdict(int)
+bigram_list = list()
+
 
 def maybe_download(filename, expected_bytes):
     """Download a file if not present, and make sure it's the right size."""
@@ -140,9 +143,7 @@ def batches2string(batches):
 
 
 def generate_bigram_dic(text):
-    bigram_dic = defaultdict(int)
     tot_char = set(text)
-    bigram_list = list()
     count = 0
     for i in tot_char:
         for j in tot_char:
@@ -150,6 +151,14 @@ def generate_bigram_dic(text):
             bigram_list.append(i+j)
             count += 1
     return count, bigram_dic
+
+
+def id2bigram(id):
+    return bigram_list[id]
+
+
+def bigram2id(bigram):
+    return bigram_dic[bigram]
 
 
 def main():
@@ -169,6 +178,10 @@ def main():
     vocabulary_size, bigram_dic = generate_bigram_dic(text)
     print(vocabulary_size)
     print bigram_dic['ax']
+
+    # map bigram to vocabulary IDs and back
+    print(bigram2id('ax'), bigram2id('zs'), bigram2id('aa'), bigram2id('as'))
+    print(id2bigram(1), id2bigram(26), id2bigram(0))
 
     # map characters to vocabulary IDs and back.
     print(char2id('a'))
