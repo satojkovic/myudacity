@@ -12,10 +12,11 @@ from six.moves.urllib.request import urlretrieve
 from collections import defaultdict
 
 url = 'http://mattmahoney.net/dc/'
-#vocabulary_size = len(string.ascii_lowercase) + 1  # [a-z] + ' '
+# vocabulary_size = len(string.ascii_lowercase) + 1  # [a-z] + ' '
+vocabulary_size = (len(string.ascii_lowercase) + 1) ** 2  # [a-z] * [a-z]
 first_letter = ord(string.ascii_lowercase[0])
-batch_size=64
-num_unrollings=10
+batch_size = 64
+num_unrollings = 10
 num_nodes = 64
 num_steps = 7001
 summary_frequency = 100
@@ -112,7 +113,10 @@ class BatchGenerator(object):
         batch = np.zeros(shape=(self._batch_size, vocabulary_size),
                          dtype=np.float)
         for b in range(self._batch_size):
-            batch[b, char2id(self._text[self._cursor[b]])] = 1.0
+            first_ch = (self._text[self._cursor[b]]).replace(' ', '')
+            second_ch = (self._text[self._cursor[b] + 1]).replace(' ', '')
+            bigram = first_ch + second_ch
+            batch[b, bigram2id(bigram)] = 1.0
             self._cursor[b] = (self._cursor[b] + 1) % self._text_size
         return batch
 
@@ -133,12 +137,16 @@ def characters(probabilities):
     return [id2char(c) for c in np.argmax(probabilities, 1)]
 
 
+def bigram_characters(probabilities):
+    return [id2bigram(c) for c in np.argmax(probabilities, 1)]
+
+
 def batches2string(batches):
     """Convert a sequence of batches back into their (most likely) string
     representation."""
     s = [''] * batches[0].shape[0]
     for b in batches:
-        s = [''.join(x) for x in zip(s, characters(b))]
+        s = [''.join(x) for x in zip(s, bigram_characters(b))]
     return s
 
 
@@ -181,7 +189,7 @@ def main():
 
     # map bigram to vocabulary IDs and back
     print(bigram2id('ax'), bigram2id('zs'), bigram2id('aa'), bigram2id('as'))
-    print(id2bigram(1), id2bigram(26), id2bigram(0))
+    print(id2bigram(100), id2bigram(260), id2bigram(0))
 
     # map characters to vocabulary IDs and back.
     print(char2id('a'))
