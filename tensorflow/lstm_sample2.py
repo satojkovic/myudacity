@@ -103,7 +103,7 @@ class BatchGenerator(object):
         self._batch_size = batch_size
         self._num_unrollings = num_unrollings
         segment = self._text_size // batch_size
-        self._cursor = [ offset * segment for offset in range(batch_size)]
+        self._cursor = [offset * segment for offset in range(batch_size)]
         self._last_batch = self._next_batch()
 
     def _next_batch(self):
@@ -112,7 +112,7 @@ class BatchGenerator(object):
         """
         batch = np.zeros(shape=(self._batch_size, vocabulary_size),
                          dtype=np.float)
-        for b in range(self._batch_size):
+        for b in range(self._batch_size-1):
             first_ch = (self._text[self._cursor[b]]).replace(' ', '')
             second_ch = (self._text[self._cursor[b] + 1]).replace(' ', '')
             bigram = first_ch + second_ch
@@ -334,12 +334,12 @@ def main():
                 print('=' * 80)
                 for _ in range(5):
                     feed = sample(random_distribution())
-                    sentence = characters(feed)[0]
+                    sentence = bigram_characters(feed)[0]
                     reset_sample_state.run()
                     for _ in range(79):
                         prediction = sample_prediction.eval({sample_input: feed})
                         feed = sample(prediction)
-                        sentence += characters(feed)[0]
+                        sentence += bigram_characters(feed)[0]
                     print(sentence)
                 print('=' * 80)
             # Measure validation set perplexity.
